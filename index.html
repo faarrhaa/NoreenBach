@@ -759,7 +759,7 @@ body{font-family:'DM Sans',sans-serif;background:#120508;color:#fdf2e9;overflow-
 
 </div><!-- /#invitation -->
 
-<script>
+<script type="module">
 /* ══════════════════════════════════════
      CORE CONTROLLER & WIDGET SCRIPTS
 ══════════════════════════════════════ */
@@ -1042,61 +1042,90 @@ function spinWheel() {
 }
 
 /* ── Song Playlist requests ── */
-function submitSong() {
+async function submitSong() {
   const nameEl = document.getElementById('song-name');
   const titleEl = document.getElementById('song-title');
   const msgEl = document.getElementById('song-msg');
-  
+
   const name = nameEl.value.trim();
   const title = titleEl.value.trim();
-  
+
   if(!name || !title) {
     msgEl.style.color = '#e57373';
-    msgEl.textContent = 'Please fill out both inputs! 💋';
+    msgEl.textContent = 'Please fill out both fields! 💋';
     msgEl.style.display = 'block';
     return;
   }
-  
-  // Save locally
-  const list = JSON.parse(localStorage.getItem('bach_songs') || '[]');
-  list.push({name, title});
-  localStorage.setItem('bach_songs', JSON.stringify(list));
-  
+
+  try {
+    await addDoc(collection(_db, "Song Requests"), {
+      name: name,
+      song: title,
+      submittedAt: serverTimestamp()
+    });
+    msgEl.style.color = 'var(--gold)';
+    msgEl.textContent = 'Song request added to the Henna playlist! 🎶';
+  } catch(e) {
+    console.error("Firebase error:", e);
+    msgEl.style.color = '#e57373';
+    msgEl.textContent = 'Something went wrong, try again! 💔';
+  }
+
+  msgEl.style.display = 'block';
   nameEl.value = '';
   titleEl.value = '';
-  
-  msgEl.style.color = 'var(--gold)';
-  msgEl.textContent = 'Song request added to Henna playlist! 🎶';
-  msgEl.style.display = 'block';
-  
   spawnConfetti();
 }
 
 
 /* ── RSVP Submissions ── */
-function submitRSVP() {
+/* ── Firebase RSVP ── */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCK-g9bi9EKBD9nl-BVm9Ijg9IQmCR-C-w",
+  authDomain: "nono-sbach.firebaseapp.com",
+  projectId: "nono-sbach",
+  storageBucket: "nono-sbach.firebasestorage.app",
+  messagingSenderId: "30010256686",
+  appId: "1:30010256686:web:49f85193952179e6691ebf"
+};
+const _fbApp = initializeApp(firebaseConfig);
+const _db = getFirestore(_fbApp);
+
+async function submitRSVP() {
   const nameEl = document.getElementById('rsvp-name');
   const attendEl = document.getElementById('rsvp-attending');
   const name = nameEl.value.trim();
-  
+
   if(!name) {
     alert("Please enter your name to RSVP! 💋");
     return;
   }
-  
+
   const status = attendEl.value;
-  let confirmText = '';
-  
-  if(status === 'yes') {
-    confirmText = `Amazing, ${name}! You're locked in for Noreen's Henna Night at Alexwest Villa! Prepare for a beautiful celebration 🥂✨`;
-  } else {
-    confirmText = `Aww, ${name}. We'll raise a glass to you at Alexwest Villa. You will be deeply missed! 💔`;
+  const kissBtn = document.querySelector('.rsvp-kiss-wrap');
+  if(kissBtn) { kissBtn.style.opacity = '0.5'; kissBtn.style.pointerEvents = 'none'; }
+
+  try {
+    await addDoc(collection(_db, "Guest list"), {
+      name: name,
+      attending: status,
+      submittedAt: serverTimestamp()
+    });
+  } catch(e) {
+    console.error("Firebase error:", e);
   }
-  
+
+  const confirmText = status === 'yes'
+    ? `Amazing, ${name}! You're locked in for Nono's Henna Night at Alexwest Villa! Prepare for a beautiful celebration 🥂✨`
+    : `Aww, ${name}. We'll raise a glass to you at Alexwest Villa. You will be deeply missed! 💔`;
+
   document.getElementById('rsvp-confirm-text').textContent = confirmText;
   document.getElementById('rsvp-confirm').style.display = 'block';
   document.getElementById('rsvp-confirm').style.animation = 'rsvpPop .5s ease both';
-  
+
   nameEl.value = '';
   spawnConfetti();
 }
@@ -1187,6 +1216,14 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, 2400);
 });
+
+/* expose to window for inline onclick handlers */
+window.toggleMusic = toggleMusic;
+window.openInvitation = openInvitation;
+window.saveDate = saveDate;
+window.spinWheel = spinWheel;
+window.submitSong = submitSong;
+window.submitRSVP = submitRSVP;
 
 </script>
 </body>
